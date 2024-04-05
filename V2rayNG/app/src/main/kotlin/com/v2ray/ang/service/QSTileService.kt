@@ -11,25 +11,26 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.util.MessageUtil
+import com.v2ray.ang.util.Utils
 import java.lang.ref.WeakReference
 
 @TargetApi(Build.VERSION_CODES.N)
 class QSTileService : TileService() {
-    
+
     private var mMsgReceive: BroadcastReceiver? = null
 
-    private class ReceiveMessageHandler(service: QSTileService) : BroadcastReceiver() {
-        private val serviceRef = WeakReference(service)
+    private class ReceiveMessageHandler(context: QSTileService) : BroadcastReceiver() {
+        private val mReference: WeakReference<QSTileService> = WeakReference(context)
+
         override fun onReceive(ctx: Context?, intent: Intent?) {
-            serviceRef.get()?.let { service ->
-                when (intent?.getIntExtra("key", 0)) {
-                    AppConfig.MSG_STATE_RUNNING,
-                    AppConfig.MSG_STATE_START_SUCCESS -> service.setState(Tile.STATE_ACTIVE)
-                    
-                    AppConfig.MSG_STATE_NOT_RUNNING,
-                    AppConfig.MSG_STATE_START_FAILURE,
-                    AppConfig.MSG_STATE_STOP_SUCCESS -> service.setState(Tile.STATE_INACTIVE)
-                }
+            val context = mReference.get()
+            when (intent?.getIntExtra("key", 0)) {
+                AppConfig.MSG_STATE_RUNNING -> context?.setState(Tile.STATE_ACTIVE)
+                AppConfig.MSG_STATE_NOT_RUNNING -> context?.setState(Tile.STATE_INACTIVE)
+                AppConfig.MSG_STATE_START_SUCCESS -> context?.setState(Tile.STATE_ACTIVE)
+                AppConfig.MSG_STATE_START_FAILURE -> context?.setState(Tile.STATE_INACTIVE)
+                AppConfig.MSG_STATE_STOP_SUCCESS -> context?.setState(Tile.STATE_INACTIVE)
             }
         }
     }
@@ -37,13 +38,19 @@ class QSTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         setState(Tile.STATE_INACTIVE)
-        val intentFilter = IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY)
         mMsgReceive = ReceiveMessageHandler(this)
-        registerReceiver(mMsgReceive, intentFilter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mMsgReceive, IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY), Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(mMsgReceive, IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY))
+        }
+
+        MessageUtil.sendMsg2Service(this, AppConfig.MSG_REGISTER_CLIENT, "")
     }
 
     override fun onStopListening() {
         super.onStopListening()
+
         unregisterReceiver(mMsgReceive)
         mMsgReceive = null
     }
@@ -51,14 +58,18 @@ class QSTileService : TileService() {
     override fun onClick() {
         super.onClick()
         when (qsTile.state) {
-            Tile.STATE_INACTIVE -> Utils.startVServiceFromToggle(this)
-            Tile.STATE_ACTIVE -> Utils.stopVService(this)
+            Tile.STATE_INACTIVE -> {
+                Utils.startVServiceFromToggle(this)
+            }
+            Tile.STATE_ACTIVE -> {
+                Utils.stopVService(this)
+            }
         }
     }
 
     fun setState(state: Int) {
         qsTile?.state = state
-        qsTile?.label = if (state == Tile.STATE_ACTIVE) V2RayServiceManager.currentConfig?.remarks else getString(R.string.app_name)
+        qsTile?.label = getString(R.string.app_name)
         qsTile?.icon = Icon.createWithResource(applicationContext, R.drawable.ic_stat_name)
         qsTile?.updateTile()
     }
