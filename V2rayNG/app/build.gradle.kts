@@ -118,6 +118,6 @@ dependencies {
     implementation("io.github.g00fy2.quickie:quickie-bundled:1.9.0")
     implementation("com.google.zxing:core:3.5.3")
 
-    implementation("androidx.work:work-runtime-ktx:2.8.1")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.work:work-multiprocess:2.8.1")
 }
