@@ -119,5 +119,5 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     implementation("androidx.work:work-runtime-ktx:2.8.1")
-    implementation("androidx.work:work-multiprocess:2.8.1")
+    implementation("androidx.work:work-multiprocess:2.9.0")
 }
